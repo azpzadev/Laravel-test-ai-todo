@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "kind": "feature",
+  "model": "Todo",
+  "command": "/laravel-feature Filter the todo listing by completion status (GitHub issue #5) --auto --commit",
+  "mode": {"auto": true, "migrate": false, "pr": false, "commit": true, "no_rollback": false},
+  "issue": {"number": 5, "url": "https://github.com/azpzadev/Laravel-test-ai-todo/issues/5"},
+  "branch": "feature/issue-5",
+  "gate": {"result": "PASS", "attempts": 1, "result_line": "RESULT: PASS model=Todo tests=47/47 critical=0 high=0 files=7"},
+  "agents_spawned": {
+    "laravel-architect": true,
+    "laravel-developer": true,
+    "laravel-qa-engineer": true,
+    "laravel-code-reviewer": true,
+    "laravel-security-auditor": true,
+    "skipped": ["laravel-developer(FIX)"],
+    "skipped_reason": "No Critical/High findings from review or audit; FIX phase not needed."
+  },
+  "plan": {
+    "table": "todos",
+    "columns": [
+      {"name": "completed", "type": "boolean", "rules": "query param: sometimes|boolean (422 on non-boolean)"}
+    ],
+    "conventions": {"architecture": "Controller->Repository->Service(Interface)->Model", "filtering_layer": "TodoService::paginate only", "validation": "IndexTodoRequest FormRequest", "messages": "config/todo.php (reused completed.boolean)", "tests": "phpunit", "response": "TodoResource collection (unchanged)"}
+  },
+  "decisions": [
+    {"what": "New IndexTodoRequest with rules ['completed' => ['sometimes','boolean']]", "why": "matches project's FormRequest input convention and lets Laravel auto-throw 422 with config-driven message", "alternative_rejected": "inline $request->validate() or manual abort(422)"},
+    {"what": "completedFilter(): ?bool tri-state helper using array_key_exists on validated()", "why": "preserves absent-vs-present distinction (absent=null=full listing) and casts query-string \"1\"/\"0\" to real bool", "alternative_rejected": "reading raw request in controller"},
+    {"what": "Filter via ->when(!is_null($completed), fn($q)=>$q->where('completed',$completed))->latest()->paginate($perPage)", "why": "keeps filtering in the service only and preserves byte-for-byte pagination/response shape", "alternative_rejected": "filtering in controller or repository"},
+    {"what": "?bool $completed = null default through Repository/Interface/Service", "why": "keeps all other paginate() callers untouched", "alternative_rejected": "required parameter"},
+    {"what": "Reused existing completed.boolean message key", "why": "config already defines it; DRY", "alternative_rejected": "adding a new validation message key"}
+  ],
+  "assumptions": [
+    "Single scalar read-filter uses IndexTodoRequest helper, not a new DTO.",
+    "?completed= (empty string) coerces to false per the boolean rule, not a full listing; out of stated scope, untested.",
+    "GET /api/todos remains unauthenticated by existing design; filter narrows an already-public listing."
+  ],
+  "tests": {"passed": 47, "failed": 0, "total": 47},
+  "routes": ["GET /api/todos"],
+  "files": [
+    {"path": "app/Http/Requests/IndexTodoRequest.php", "action": "created", "additions": 57, "deletions": 0},
+    {"path": "app/Http/Controllers/TodoController.php", "action": "modified", "additions": 10, "deletions": 2},
+    {"path": "app/Services/TodoService.php", "action": "modified", "additions": 13, "deletions": 2},
+    {"path": "app/Repositories/TodoRepository.php", "action": "modified", "additions": 8, "deletions": 2},
+    {"path": "app/Contracts/Services/TodoServiceInterface.php", "action": "modified", "additions": 6, "deletions": 1},
+    {"path": "tests/Feature/TodoApiTest.php", "action": "modified", "additions": 55, "deletions": 0},
+    {"path": "tests/Unit/TodoServiceTest.php", "action": "modified", "additions": 38, "deletions": 0}
+  ],
+  "findings": [
+    {"id": "review-1", "source": "review", "severity": "low", "category": "migration", "file": "database/migrations/2026_08_14_000000_create_todos_table.php", "line": 24, "title": "No index on newly-filterable completed column", "status": "open"},
+    {"id": "review-2", "source": "review", "severity": "low", "category": "testing", "file": "app/Http/Requests/IndexTodoRequest.php", "line": 27, "title": "Empty-string ?completed= contract untested (coerces to false)", "status": "open"}
+  ],
+  "counts": {"critical": 0, "high": 0, "medium": 0, "low": 2},
+  "polish": {"pint": "ran", "phpstan": "not-installed", "new_static_errors": 0},
+  "shipped": {"committed": true, "commit": null, "pr_number": 0, "pr_url": "", "migrated": false, "rolled_back": false},
+  "log_markdown": "docs/agent-workflow/2026-08-14-Todo-issue-5.md"
+}

@@ -48,6 +48,61 @@ final class TodoApiTest extends TestCase
     }
 
     // ---------------------------------------------------------------------
+    // index — completed query filter
+    // ---------------------------------------------------------------------
+
+    public function test_index_with_completed_1_returns_only_completed_todos(): void
+    {
+        Todo::factory()->completed()->count(2)->create();
+        Todo::factory()->count(3)->create();
+
+        $response = $this->getJson('/api/todos?completed=1');
+
+        $response->assertOk();
+        $response->assertJsonCount(2, 'data');
+
+        foreach ($response->json('data') as $todo) {
+            $this->assertTrue($todo['completed']);
+        }
+    }
+
+    public function test_index_with_completed_0_returns_only_outstanding_todos(): void
+    {
+        Todo::factory()->completed()->count(2)->create();
+        Todo::factory()->count(3)->create();
+
+        $response = $this->getJson('/api/todos?completed=0');
+
+        $response->assertOk();
+        $response->assertJsonCount(3, 'data');
+
+        foreach ($response->json('data') as $todo) {
+            $this->assertFalse($todo['completed']);
+        }
+    }
+
+    public function test_index_without_completed_param_returns_all_todos(): void
+    {
+        Todo::factory()->completed()->count(2)->create();
+        Todo::factory()->count(3)->create();
+
+        $response = $this->getJson('/api/todos');
+
+        $response->assertOk();
+        $response->assertJsonCount(5, 'data');
+    }
+
+    public function test_index_fails_with_422_when_completed_not_boolean(): void
+    {
+        Todo::factory()->count(2)->create();
+
+        $response = $this->getJson('/api/todos?completed=notabool');
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('completed');
+    }
+
+    // ---------------------------------------------------------------------
     // store
     // ---------------------------------------------------------------------
 

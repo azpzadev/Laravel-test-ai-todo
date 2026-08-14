@@ -47,6 +47,44 @@ final class TodoServiceTest extends TestCase
         $this->assertCount(0, $result);
     }
 
+    public function test_paginate_with_completed_true_returns_only_completed_rows(): void
+    {
+        Todo::factory()->completed()->count(2)->create();
+        Todo::factory()->count(3)->create();
+
+        $result = $this->service->paginate(perPage: 15, completed: true);
+
+        $this->assertCount(2, $result);
+
+        foreach ($result as $todo) {
+            $this->assertTrue($todo->completed);
+        }
+    }
+
+    public function test_paginate_with_completed_false_returns_only_outstanding_rows(): void
+    {
+        Todo::factory()->completed()->count(2)->create();
+        Todo::factory()->count(3)->create();
+
+        $result = $this->service->paginate(perPage: 15, completed: false);
+
+        $this->assertCount(3, $result);
+
+        foreach ($result as $todo) {
+            $this->assertFalse($todo->completed);
+        }
+    }
+
+    public function test_paginate_without_completed_returns_all_rows(): void
+    {
+        Todo::factory()->completed()->count(2)->create();
+        Todo::factory()->count(3)->create();
+
+        $result = $this->service->paginate(perPage: 15);
+
+        $this->assertCount(5, $result);
+    }
+
     public function test_create_persists_a_new_todo(): void
     {
         $data = new TodoData(

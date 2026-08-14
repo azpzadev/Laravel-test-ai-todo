@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\DTOs\TodoData;
+use App\Http\Requests\IndexTodoRequest;
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
 use App\Http\Resources\TodoResource;
@@ -22,11 +23,16 @@ final class TodoController extends Controller
     /**
      * Display a paginated listing of the todos.
      */
-    public function index(): AnonymousResourceCollection
+    public function index(IndexTodoRequest $request): AnonymousResourceCollection
     {
         $perPage = (int) config('todo.pagination.per_page');
 
-        return TodoResource::collection($this->repository->paginate(perPage: $perPage));
+        return TodoResource::collection(
+            $this->repository->paginate(
+                perPage: $perPage,
+                completed: $request->completedFilter(),
+            ),
+        );
     }
 
     /**
