@@ -1,58 +1,162 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Todo API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A small, strictly-layered **Todo REST API** built on Laravel 13 (PHP 8.3). It exposes
+full CRUD over a `todos` resource and is built to demonstrate a clean, testable
+architecture: validation, typed DTOs, a service interface behind a repository, and
+JSON resources — with no business logic in the controller and no database access
+outside the service layer.
 
-## About Laravel
+> Architecture details live in [`docs/architecture.md`](docs/architecture.md).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Full CRUD for todos (`title`, `description`, `completed`, `due_date`).
+- Partial updates (`PATCH`) that never clobber absent fields.
+- Paginated listing (newest first), page size driven by config — never hardcoded.
+- Centralised, translatable validation messages (`config/todo.php`).
+- Structured logging on every create / read / update / delete.
+- Feature, regression, and unit test coverage (Pest).
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requirements
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP `^8.3`
+- Composer
+- A database (SQLite by default for local/testing)
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Getting Started
 
 ```bash
-composer require laravel/boost --dev
+# 1. Install dependencies
+composer install
 
-php artisan boost:install
+# 2. Environment
+cp .env.example .env
+php artisan key:generate
+
+# 3. Database (SQLite example)
+touch database/database.sqlite   # then set DB_CONNECTION=sqlite in .env
+php artisan migrate
+
+# 4. Serve
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The API is then available under `http://localhost:8000/api`.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## API Reference
 
-## Code of Conduct
+Base path: `/api` · Resource: `todos` · Media type: `application/json`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+| Method      | URI                | Action  | Description                         |
+|-------------|--------------------|---------|-------------------------------------|
+| `GET`       | `/api/todos`       | index   | Paginated list, newest first        |
+| `POST`      | `/api/todos`       | store   | Create a todo                       |
+| `GET`       | `/api/todos/{id}`  | show    | Fetch a single todo                 |
+| `PUT/PATCH` | `/api/todos/{id}`  | update  | Update a todo (partial-safe)        |
+| `DELETE`    | `/api/todos/{id}`  | destroy | Delete a todo (`204 No Content`)    |
 
-## Security Vulnerabilities
+### Fields & validation
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| Field         | Type            | Rules (store)                    | Notes                                |
+|---------------|-----------------|----------------------------------|--------------------------------------|
+| `title`       | string          | required, string, max:255        | Short task label                     |
+| `description` | string \| null  | nullable, string, max:5000       | Optional long-form details           |
+| `completed`   | boolean         | sometimes, boolean               | Defaults to `false`                  |
+| `due_date`    | date \| null    | nullable, date (`Y-m-d`)         | Optional due date                    |
+
+On update, every rule additionally accepts `sometimes` so a `PATCH` can send only the
+fields it wants to change; omitted fields keep their stored values.
+
+### Example — create
+
+```bash
+curl -X POST http://localhost:8000/api/todos \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"title":"Write docs","description":"Todo README","due_date":"2026-09-01"}'
+```
+
+```json
+{
+  "data": {
+    "id": 1,
+    "title": "Write docs",
+    "description": "Todo README",
+    "completed": false,
+    "due_date": "2026-09-01",
+    "created_at": "2026-08-14T00:00:00.000000Z",
+    "updated_at": "2026-08-14T00:00:00.000000Z"
+  }
+}
+```
+
+The `index` endpoint wraps the same shape in a paginated envelope (`data`, `links`,
+`meta`), with page size taken from `config('todo.pagination.per_page')` (default `15`).
+
+---
+
+## Architecture (at a glance)
+
+The request flows in one direction only — the controller never touches the database,
+and only the service touches the model:
+
+```
+Request → Controller → Repository → Service (Interface) → Model
+             │             │              │                  │
+        validate &     delegate to     all DB / CRUD +    attributes,
+         dispatch      the interface   structured logs    casts, docs
+```
+
+- **FormRequest** — validates input; messages come from `config/todo.php`.
+- **DTO (`TodoData`)** — typed, immutable carrier; also derives partial-update change-sets.
+- **Controller** — validation + dispatch only; returns `TodoResource`.
+- **Repository** — depends on `TodoServiceInterface` via DI; no direct DB calls.
+- **Service** — the only layer that touches the `Todo` model; owns all CRUD + logging.
+- **Resource** — shapes the exact JSON the client receives.
+
+See [`docs/architecture.md`](docs/architecture.md) for the full breakdown, file map,
+and the reasoning behind each layer.
+
+---
+
+## Configuration
+
+`config/todo.php` centralises everything that would otherwise be hardcoded:
+
+- `todo.messages` — validation messages for the form requests.
+- `todo.pagination.per_page` — listing page size.
+
+---
+
+## Testing
+
+```bash
+php artisan test            # full suite (Pest)
+php artisan test --filter Todo
+```
+
+| Suite | File | Covers |
+|-------|------|--------|
+| Feature | `tests/Feature/TodoApiTest.php` | Each endpoint, happy path + validation failures |
+| Feature | `tests/Feature/TodoRegressionTest.php` | Partial-update safety and edge cases |
+| Unit | `tests/Unit/TodoServiceTest.php` | Service CRUD behaviour |
+
+---
+
+## Code Style
+
+Formatted with [Laravel Pint](https://laravel.com/docs/pint):
+
+```bash
+vendor/bin/pint --dirty
+```
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
