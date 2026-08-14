@@ -19,9 +19,11 @@ interface TodoServiceInterface
     public function all(): Collection;
 
     /**
-     * Retrieve a paginated listing of todos, newest first.
+     * Retrieve a paginated listing of todos, newest first. When $completed is
+     * provided the listing is restricted to that completion state; null lists
+     * every todo.
      */
-    public function paginate(int $perPage): LengthAwarePaginator;
+    public function paginate(int $perPage, ?bool $completed = null): LengthAwarePaginator;
 
     /**
      * Persist a new todo.

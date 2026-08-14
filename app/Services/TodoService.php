@@ -24,13 +24,18 @@ final class TodoService implements TodoServiceInterface
     }
 
     /**
-     * Retrieve a paginated listing of todos, newest first.
+     * Retrieve a paginated listing of todos, newest first. When $completed is
+     * provided the listing is restricted to that completion state; null lists
+     * every todo.
      */
-    public function paginate(int $perPage): LengthAwarePaginator
+    public function paginate(int $perPage, ?bool $completed = null): LengthAwarePaginator
     {
-        $todos = Todo::query()->latest()->paginate($perPage);
+        $todos = Todo::query()
+            ->when(! is_null($completed), fn ($query) => $query->where('completed', $completed))
+            ->latest()
+            ->paginate($perPage);
 
-        Log::info('todo.listed', ['count' => $todos->count()]);
+        Log::info('todo.listed', ['count' => $todos->count(), 'completed' => $completed]);
 
         return $todos;
     }
