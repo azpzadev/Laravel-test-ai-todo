@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "kind": "feature",
+  "model": "Todo",
+  "command": "/laravel-feature Add todo crud (GitHub issue #1) --auto --commit",
+  "mode": {"auto": true, "migrate": false, "pr": false, "commit": true, "no_rollback": false},
+  "issue": {"number": 1, "url": "https://github.com/azpzadev/Laravel-test-ai-todo/issues/1"},
+  "branch": "feature/issue-1",
+  "gate": {"result": "PASS", "attempts": 1, "result_line": "RESULT: PASS model=Todo tests=40/40 critical=0 high=0 files=18"},
+  "agents_spawned": {
+    "laravel-architect": true,
+    "laravel-developer": true,
+    "laravel-qa-engineer": true,
+    "laravel-code-reviewer": true,
+    "laravel-security-auditor": true,
+    "skipped": [],
+    "skipped_reason": ""
+  },
+  "plan": {
+    "table": "todos",
+    "columns": [
+      {"name": "id", "type": "bigIncrements", "rules": "pk"},
+      {"name": "title", "type": "string(255)", "rules": "required|string|max:255"},
+      {"name": "description", "type": "text", "rules": "nullable|string|max:5000"},
+      {"name": "completed", "type": "boolean", "rules": "boolean; default false"},
+      {"name": "due_date", "type": "date", "rules": "nullable|date"},
+      {"name": "created_at", "type": "timestamp", "rules": "indexed (list sort)"},
+      {"name": "updated_at", "type": "timestamp", "rules": ""}
+    ],
+    "conventions": {"architecture": "Request->Controller->Repository->Service(Interface)->Model", "model_config": "PHP attributes #[Fillable]/casts() (matches User.php)", "tests": "phpunit", "response": "JsonResource", "messages": "config/todo.php", "auth": "none (deliberate)"}
+  },
+  "decisions": [
+    {"what": "Register API routing by hand in bootstrap/app.php + routes/api.php", "why": "skeleton had no api routing; avoided install:api to not pull Sanctum (no auth needed)", "alternative_rejected": "php artisan install:api"},
+    {"what": "Partial update via changesFromRequest() (present validated keys only)", "why": "prevents PATCH from nulling unsent description/due_date and resetting completed; array_key_exists distinguishes absent-keep from present-null-set", "alternative_rejected": "full toArray() write on every update"},
+    {"what": "Kept update(Todo, TodoData) alongside new applyChanges(Todo, array)", "why": "un-editable unit test binds to service->update(); both paths tested", "alternative_rejected": "rename/replace update()"},
+    {"what": "Paginate index via config('todo.pagination.per_page')", "why": "unbounded list is a DoS/perf smell; no hardcoded page size", "alternative_rejected": "all()->get()"},
+    {"what": "Index created_at, drop unused completed/due_date indexes", "why": "latest() sorts on created_at; the other two indexes matched no query (no speculative abstraction)", "alternative_rejected": "keep speculative indexes"},
+    {"what": "destroy() returns 204 No Content", "why": "REST convention; no stale deleted model in body", "alternative_rejected": "return TodoResource of deleted model"},
+    {"what": "throttle:60,1 inline", "why": "the api named limiter ships with install:api which was avoided", "alternative_rejected": "throttle:api"}
+  ],
+  "assumptions": [
+    "Update supports partial PATCH (sometimes rules).",
+    "due_date is a calendar date, not datetime.",
+    "completed defaults to false when omitted on create.",
+    "One shared readonly TodoData DTO covers create and update.",
+    "No authentication/ownership for this feature (deliberate).",
+    "Model uses #[Fillable] attribute + casts() to match User.php house style, not legacy $fillable."
+  ],
+  "tests": {"passed": 40, "failed": 0, "total": 40},
+  "routes": [
+    "GET /api/todos",
+    "POST /api/todos",
+    "GET /api/todos/{todo}",
+    "PUT|PATCH /api/todos/{todo}",
+    "DELETE /api/todos/{todo}"
+  ],
+  "files": [
+    {"path": "database/migrations/2026_08_14_000000_create_todos_table.php", "action": "created", "additions": 37, "deletions": 0},
+    {"path": "app/Models/Todo.php", "action": "created", "additions": 40, "deletions": 0},
+    {"path": "app/DTOs/TodoData.php", "action": "created", "additions": 86, "deletions": 0},
+    {"path": "app/Contracts/Services/TodoServiceInterface.php", "action": "created", "additions": 53, "deletions": 0},
+    {"path": "app/Services/TodoService.php", "action": "created", "additions": 103, "deletions": 0},
+    {"path": "app/Repositories/TodoRepository.php", "action": "created", "additions": 79, "deletions": 0},
+    {"path": "app/Http/Controllers/TodoController.php", "action": "created", "additions": 72, "deletions": 0},
+    {"path": "app/Http/Requests/StoreTodoRequest.php", "action": "created", "additions": 43, "deletions": 0},
+    {"path": "app/Http/Requests/UpdateTodoRequest.php", "action": "created", "additions": 43, "deletions": 0},
+    {"path": "app/Http/Resources/TodoResource.php", "action": "created", "additions": 33, "deletions": 0},
+    {"path": "routes/api.php", "action": "created", "additions": 10, "deletions": 0},
+    {"path": "config/todo.php", "action": "created", "additions": 41, "deletions": 0},
+    {"path": "database/factories/TodoFactory.php", "action": "created", "additions": 39, "deletions": 0},
+    {"path": "bootstrap/app.php", "action": "edited", "additions": 1, "deletions": 0},
+    {"path": "app/Providers/AppServiceProvider.php", "action": "edited", "additions": 5, "deletions": 1},
+    {"path": "tests/Feature/TodoApiTest.php", "action": "created", "additions": 344, "deletions": 0},
+    {"path": "tests/Feature/TodoRegressionTest.php", "action": "created", "additions": 226, "deletions": 0},
+    {"path": "tests/Unit/TodoServiceTest.php", "action": "created", "additions": 126, "deletions": 0}
+  ],
+  "findings": [
+    {"id": "review-1", "source": "review", "severity": "high", "category": "correctness", "file": "app/Services/TodoService.php", "line": 58, "title": "Partial PATCH nulls description/due_date and resets completed", "status": "resolved"},
+    {"id": "qa-red", "source": "qa", "severity": "high", "category": "correctness", "file": "app/DTOs/TodoData.php", "line": 30, "title": "completed clobbered on partial PATCH (proven by red test)", "status": "resolved"},
+    {"id": "sec-1", "source": "audit", "severity": "medium", "category": "validation", "file": "app/Http/Requests/StoreTodoRequest.php", "line": 29, "title": "description has no max length bound", "status": "resolved"},
+    {"id": "sec-2", "source": "audit", "severity": "medium", "category": "dos", "file": "app/Services/TodoService.php", "line": 22, "title": "index returns entire table unpaginated", "status": "resolved"},
+    {"id": "review-3", "source": "review", "severity": "medium", "category": "performance", "file": "app/Services/TodoService.php", "line": 22, "title": "index unpaginated (dup of sec-2)", "status": "resolved"},
+    {"id": "review-4", "source": "review", "severity": "medium", "category": "migration", "file": "database/migrations/2026_08_14_000000_create_todos_table.php", "line": 24, "title": "Indexes do not match queries", "status": "resolved"},
+    {"id": "review-2", "source": "review", "severity": "medium", "category": "correctness", "file": "app/Services/TodoService.php", "line": 56, "title": "update() returns stale in-memory model", "status": "resolved"},
+    {"id": "review-5", "source": "review", "severity": "medium", "category": "testing", "file": "app/Services/TodoService.php", "line": 24, "title": "No test covers CRUD log events or throttle", "status": "resolved"},
+    {"id": "review-7", "source": "review", "severity": "low", "category": "quality", "file": "app/Providers/AppServiceProvider.php", "line": 1, "title": "Missing declare(strict_types=1)", "status": "resolved"},
+    {"id": "sec-3", "source": "audit", "severity": "low", "category": "info-disclosure", "file": ".env", "line": 4, "title": "APP_DEBUG=true risks stack-trace leak if deployed", "status": "open"},
+    {"id": "sec-4", "source": "audit", "severity": "low", "category": "idor", "file": "app/Http/Controllers/TodoController.php", "line": 51, "title": "No Policy/ownership (accepted; IDOR once auth added)", "status": "open"},
+    {"id": "review-6", "source": "review", "severity": "low", "category": "convention", "file": "app/DTOs/TodoData.php", "line": 21, "title": "DTO couples to HTTP FormRequest", "status": "open"},
+    {"id": "review-8", "source": "review", "severity": "low", "category": "api", "file": "app/Http/Resources/TodoResource.php", "line": 28, "title": "Inconsistent date formats in payload", "status": "open"}
+  ],
+  "counts": {"critical": 0, "high": 0, "medium": 0, "low": 4},
+  "polish": {"pint": "ran", "phpstan": "not-installed", "new_static_errors": 0},
+  "shipped": {"committed": true, "commit": "98f7f730fcb0cf9e02faa8fd7d55a69f8d560366", "pr_number": 0, "pr_url": "", "migrated": false, "rolled_back": false},
+  "log_markdown": "docs/agent-workflow/2026-08-14-Todo.md"
+}
