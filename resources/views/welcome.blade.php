@@ -17,9 +17,32 @@
             </style>
         @endif
     </head>
-    <body class="bg-[#FDFDFC] dark:bg-[#0a0a0a] text-[#1b1b18] flex p-6 lg:p-8 items-center lg:justify-center min-h-screen flex-col">
+    <body class="bg-[#FDFDFC] dark:bg-[#0a0a0a] text-[#1b1b18] dark:text-[#EDEDEC] min-h-screen p-6 lg:p-8">
+        {{-- Page-scoped styles for layout the precompiled fallback bundle lacks; work with or without a Vite build. --}}
+        <style>
+            .welcome-container { max-width: 72rem; margin-left: auto; margin-right: auto; }
+            .welcome-hero-title { font-size: 2.25rem; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+            .welcome-accent { color: #f53003; }
+            .welcome-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: #fff2f2; color: #f53003; border: 1px solid #f8d2cc; }
+            .welcome-grid-3, .welcome-grid-2 { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+            .welcome-section { margin-top: 4rem; scroll-margin-top: 1.5rem; }
+            .welcome-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; }
+            .welcome-ai-card { border: 1px solid #f8d2cc; background: linear-gradient(135deg, #fff7f5 0%, #ffffff 100%); }
+            .welcome-line-through { text-decoration: line-through; }
+            @media (min-width: 768px) {
+                .welcome-hero-title { font-size: 3.25rem; }
+                .welcome-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                .welcome-grid-2 { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+            }
+            @media (prefers-color-scheme: dark) {
+                .welcome-accent { color: #FF4433; }
+                .welcome-badge { background: #1D0002; color: #FF4433; border-color: #4B0600; }
+                .welcome-ai-card { border-color: #4B0600; background: linear-gradient(135deg, #1D0002 0%, #161615 100%); }
+            }
+        </style>
+
         @php
-            // Static mockup data only — no DB, controller, or CRUD. Titles are load-bearing test markers.
+            // Static sample data only — no DB, controller, or CRUD. Titles are load-bearing test markers.
             $todos = [
                 [
                     'title' => 'Buy groceries',
@@ -57,80 +80,188 @@
             $totalCount = count($todos);
             $completedCount = count(array_filter($todos, fn (array $todo): bool => $todo['completed'] === true));
             $pendingCount = $totalCount - $completedCount;
+
+            // "AI" next step: the pending todo with the earliest due date (null when none qualifies).
+            $suggestedTodo = collect($todos)
+                ->filter(fn (array $todo): bool => $todo['completed'] === false && ! is_null($todo['due_date']))
+                ->sortBy('due_date')
+                ->first();
+
+            $features = [
+                [
+                    'title' => 'Smart next step',
+                    'description' => 'The assistant looks at what is still open and points you to the task that is due soonest.',
+                ],
+                [
+                    'title' => 'Due dates that matter',
+                    'description' => 'Give a todo a due date and it moves up the list as the day gets closer.',
+                ],
+                [
+                    'title' => 'Private by default',
+                    'description' => 'Every account signs in with its own token and only ever sees its own todos.',
+                ],
+            ];
+
+            $apiEndpoints = [
+                ['method' => 'POST', 'path' => '/api/register', 'description' => 'Create an account and get a token'],
+                ['method' => 'POST', 'path' => '/api/login', 'description' => 'Sign in and get a token'],
+                ['method' => 'GET', 'path' => '/api/todos', 'description' => 'List your todos (paginated)'],
+                ['method' => 'POST', 'path' => '/api/todos', 'description' => 'Add a todo'],
+            ];
         @endphp
 
-        <main class="w-full max-w-xl mx-auto">
-            <header class="mb-6">
-                <h1 class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">My Todos</h1>
-                <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">A simple overview of what needs doing.</p>
+        <div class="welcome-container">
+            <nav class="flex items-center justify-between gap-4" aria-label="Main">
+                <a href="#" class="flex items-center gap-2 font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">
+                    <svg class="w-5 h-5 welcome-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2zm7 11l.95 2.55L22.5 16.5l-2.55.95L19 20l-.95-2.55-2.55-.95 2.55-.95L19 13z"/>
+                    </svg>
+                    Todo AI
+                </a>
+                <div class="flex items-center gap-4 text-sm">
+                    <a href="#features" class="text-[#706f6c] dark:text-[#A1A09A] hover:text-gray-700">Features</a>
+                    <a href="#preview" class="text-[#706f6c] dark:text-[#A1A09A] hover:text-gray-700">Preview</a>
+                    <a href="#get-started" class="inline-block px-5 py-1.5 border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] rounded-sm text-[#1b1b18] dark:text-[#EDEDEC]">Get started</a>
+                </div>
+            </nav>
+
+            <header class="welcome-section text-center">
+                <span class="welcome-badge">AI-assisted planning</span>
+                <h1 class="welcome-hero-title mt-6">
+                    Your todos, <span class="welcome-accent">sorted by AI.</span>
+                </h1>
+                <p class="mt-6 text-lg text-[#706f6c] dark:text-[#A1A09A] max-w-xl mx-auto">
+                    Write down what needs doing. Todo AI keeps track of due dates and tells you what to work on next.
+                </p>
+                <div class="mt-8 flex items-center justify-center gap-4">
+                    <a href="#preview" class="inline-block px-5 py-1.5 bg-[#1b1b18] text-white border border-black rounded-sm text-sm leading-normal hover:bg-black dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A]">See it in action</a>
+                    <a href="#get-started" class="inline-block px-5 py-1.5 border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] rounded-sm text-sm leading-normal text-[#1b1b18] dark:text-[#EDEDEC]">Read the API</a>
+                </div>
             </header>
 
-            <section class="flex gap-4 mb-6">
-                <div class="flex-1 bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 text-center shadow-sm">
-                    <p class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">{{ $totalCount }}</p>
-                    <p class="text-sm uppercase tracking-wider text-[#706f6c] dark:text-[#A1A09A]">Total</p>
-                </div>
-                <div class="flex-1 bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 text-center shadow-sm">
-                    <p class="text-lg font-semibold text-[#f53003] dark:text-[#FF4433]">{{ $completedCount }}</p>
-                    <p class="text-sm uppercase tracking-wider text-[#706f6c] dark:text-[#A1A09A]">Completed</p>
-                </div>
-                <div class="flex-1 bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 text-center shadow-sm">
-                    <p class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">{{ $pendingCount }}</p>
-                    <p class="text-sm uppercase tracking-wider text-[#706f6c] dark:text-[#A1A09A]">Pending</p>
+            <section id="features" class="welcome-section" aria-labelledby="features-heading">
+                <h2 id="features-heading" class="text-lg font-semibold text-center mb-6">Why Todo AI</h2>
+                <div class="welcome-grid-3">
+                    @foreach ($features as $feature)
+                        <article class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm">
+                            <h3 class="font-semibold">{{ $feature['title'] }}</h3>
+                            <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">{{ $feature['description'] }}</p>
+                        </article>
+                    @endforeach
                 </div>
             </section>
 
-            <ul class="flex flex-col gap-3 mb-6">
-                @foreach ($todos as $todo)
-                    <li class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm">
-                        <div class="flex items-center justify-between gap-4">
-                            @if ($todo['completed'])
-                                {{-- line-through utility is not in the precompiled bundle; inline style used deliberately --}}
-                                <span class="font-semibold text-[#706f6c] dark:text-[#A1A09A]" style="text-decoration:line-through">{{ $todo['title'] }}</span>
-                                <span class="text-sm font-medium px-2 py-1 rounded-sm border border-[#e3e3e0] dark:border-[#3E3E3A] text-[#f53003] dark:text-[#FF4433]">Completed</span>
-                            @else
-                                <span class="font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">{{ $todo['title'] }}</span>
-                                <span class="text-sm font-medium px-2 py-1 rounded-sm border border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-300">Pending</span>
-                            @endif
+            <section id="preview" class="welcome-section" aria-labelledby="preview-heading">
+                <div class="welcome-grid-2">
+                    <div>
+                        <header class="mb-6">
+                            <h2 id="preview-heading" class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">My Todos</h2>
+                            <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">A preview with sample data.</p>
+                        </header>
+
+                        <div class="flex gap-4 mb-6">
+                            <div class="flex-1 bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 text-center shadow-sm">
+                                <p class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">{{ $totalCount }}</p>
+                                <p class="text-sm uppercase tracking-wider text-[#706f6c] dark:text-[#A1A09A]">Total</p>
+                            </div>
+                            <div class="flex-1 bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 text-center shadow-sm">
+                                <p class="text-lg font-semibold text-[#f53003] dark:text-[#FF4433]">{{ $completedCount }}</p>
+                                <p class="text-sm uppercase tracking-wider text-[#706f6c] dark:text-[#A1A09A]">Completed</p>
+                            </div>
+                            <div class="flex-1 bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 text-center shadow-sm">
+                                <p class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">{{ $pendingCount }}</p>
+                                <p class="text-sm uppercase tracking-wider text-[#706f6c] dark:text-[#A1A09A]">Pending</p>
+                            </div>
                         </div>
 
-                        @if (! is_null($todo['description']))
-                            <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">{{ $todo['description'] }}</p>
-                        @endif
-
-                        <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                            @if (! is_null($todo['due_date']))
-                                Due {{ \Illuminate\Support\Carbon::parse($todo['due_date'])->format('M j, Y') }}
+                        <aside class="welcome-ai-card rounded-md p-6 mb-6" aria-label="AI suggestion">
+                            <p class="text-sm font-semibold welcome-accent">AI suggestion</p>
+                            @if (! is_null($suggestedTodo))
+                                <p class="mt-2 text-sm">
+                                    Start with <strong>{{ $suggestedTodo['title'] }}</strong>: it is the open task due soonest
+                                    ({{ \Illuminate\Support\Carbon::parse($suggestedTodo['due_date'])->format('M j, Y') }}).
+                                </p>
                             @else
-                                No due date
+                                <p class="mt-2 text-sm">Nothing with a due date is waiting. You're all caught up.</p>
                             @endif
-                        </p>
-                    </li>
-                @endforeach
-            </ul>
+                        </aside>
 
-            <section class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm">
-                <h2 class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC] mb-4">Add Todo</h2>
-                <form action="#" class="flex flex-col gap-4">
-                    <div class="flex flex-col gap-2">
-                        <label for="title" class="text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">Title</label>
-                        <input id="title" type="text" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]">
+                        <ul class="flex flex-col gap-3">
+                            @foreach ($todos as $todo)
+                                <li class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm">
+                                    <div class="flex items-center justify-between gap-4">
+                                        @if ($todo['completed'])
+                                            <span class="font-semibold text-[#706f6c] dark:text-[#A1A09A] welcome-line-through">{{ $todo['title'] }}</span>
+                                            <span class="text-sm font-medium px-2 py-1 rounded-sm border border-[#e3e3e0] dark:border-[#3E3E3A] text-[#f53003] dark:text-[#FF4433]">Completed</span>
+                                        @else
+                                            <span class="font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">{{ $todo['title'] }}</span>
+                                            <span class="text-sm font-medium px-2 py-1 rounded-sm border border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-300">Pending</span>
+                                        @endif
+                                    </div>
+
+                                    @if (! is_null($todo['description']))
+                                        <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">{{ $todo['description'] }}</p>
+                                    @endif
+
+                                    <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                                        @if (! is_null($todo['due_date']))
+                                            Due {{ \Illuminate\Support\Carbon::parse($todo['due_date'])->format('M j, Y') }}
+                                        @else
+                                            No due date
+                                        @endif
+                                    </p>
+                                </li>
+                            @endforeach
+                        </ul>
                     </div>
-                    <div class="flex flex-col gap-2">
-                        <label for="description" class="text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">Description</label>
-                        <textarea id="description" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]"></textarea>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <label for="due_date" class="text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">Due date</label>
-                        <input id="due_date" type="date" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]">
-                    </div>
-                    <div>
-                        <button type="button" class="inline-block px-5 py-1.5 bg-[#1b1b18] text-white border border-black rounded-sm text-sm leading-normal dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A]">
-                            Add Todo
-                        </button>
-                    </div>
-                </form>
+
+                    <section class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm" aria-labelledby="add-todo-heading">
+                        <h2 id="add-todo-heading" class="text-lg font-semibold text-[#1b1b18] dark:text-[#EDEDEC] mb-4">Add Todo</h2>
+                        {{-- Preview only: the form does not submit. Real todos are created through POST /api/todos. --}}
+                        <form action="#" class="flex flex-col gap-4">
+                            <div class="flex flex-col gap-2">
+                                <label for="title" class="text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">Title</label>
+                                <input id="title" type="text" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]">
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label for="description" class="text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">Description</label>
+                                <textarea id="description" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]"></textarea>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label for="due_date" class="text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">Due date</label>
+                                <input id="due_date" type="date" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]">
+                            </div>
+                            <div>
+                                <button type="button" class="inline-block px-5 py-1.5 bg-[#1b1b18] text-white border border-black rounded-sm text-sm leading-normal dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A]">
+                                    Add Todo
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
             </section>
-        </main>
+
+            <section id="get-started" class="welcome-section" aria-labelledby="get-started-heading">
+                <div class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm">
+                    <h2 id="get-started-heading" class="text-lg font-semibold">Get started with the API</h2>
+                    <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                        Register or log in to receive a token, then send it as <code class="welcome-code">Authorization: Bearer &lt;token&gt;</code> on every todo request.
+                    </p>
+                    <ul class="mt-4 flex flex-col gap-2">
+                        @foreach ($apiEndpoints as $endpoint)
+                            <li class="flex items-center gap-4 text-sm">
+                                <span class="welcome-code font-semibold welcome-accent w-auto">{{ $endpoint['method'] }}</span>
+                                <code class="welcome-code">{{ $endpoint['path'] }}</code>
+                                <span class="text-[#706f6c] dark:text-[#A1A09A]">{{ $endpoint['description'] }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </section>
+
+            <footer class="welcome-section mb-6 text-center text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                Todo AI · Built with Laravel
+            </footer>
+        </div>
     </body>
 </html>
