@@ -9,11 +9,11 @@ use Illuminate\Foundation\Http\FormRequest;
 final class StoreTodoRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Any authenticated user may create a todo; it is always owned by them.
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null;
     }
 
     /**

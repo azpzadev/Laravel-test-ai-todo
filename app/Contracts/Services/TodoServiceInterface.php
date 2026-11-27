@@ -6,6 +6,7 @@ namespace App\Contracts\Services;
 
 use App\DTOs\TodoData;
 use App\Models\Todo;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -19,14 +20,14 @@ interface TodoServiceInterface
     public function all(): Collection;
 
     /**
-     * Retrieve a paginated listing of todos, newest first.
+     * Retrieve a paginated listing of the owner's todos, newest first.
      */
-    public function paginate(int $perPage): LengthAwarePaginator;
+    public function paginate(User $owner, int $perPage): LengthAwarePaginator;
 
     /**
-     * Persist a new todo.
+     * Persist a new todo owned by the given user.
      */
-    public function create(TodoData $data): Todo;
+    public function create(User $owner, TodoData $data): Todo;
 
     /**
      * Retrieve a single todo by its identifier.

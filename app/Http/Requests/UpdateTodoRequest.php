@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Todo;
 use Illuminate\Foundation\Http\FormRequest;
 
 final class UpdateTodoRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Only the owner of the todo may update it (see TodoPolicy::update).
      */
     public function authorize(): bool
     {
-        return true;
+        $todo = $this->route('todo');
+
+        return $todo instanceof Todo
+            && $this->user()?->can('update', $todo) === true;
     }
 
     /**

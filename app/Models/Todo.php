@@ -8,10 +8,12 @@ use Database\Factories\TodoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property int|null $user_id Owner of the task; set through the relation, never mass-assigned.
  * @property string $title Short human-readable label for the task.
  * @property string|null $description Optional long-form details about the task.
  * @property bool $completed Whether the task has been finished.
@@ -24,6 +26,16 @@ class Todo extends Model
 {
     /** @use HasFactory<TodoFactory> */
     use HasFactory;
+
+    /**
+     * Get the user who owns the todo.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     /**
      * Get the attributes that should be cast.

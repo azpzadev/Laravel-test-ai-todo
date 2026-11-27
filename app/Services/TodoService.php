@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Contracts\Services\TodoServiceInterface;
 use App\DTOs\TodoData;
 use App\Models\Todo;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -24,23 +25,28 @@ final class TodoService implements TodoServiceInterface
     }
 
     /**
-     * Retrieve a paginated listing of todos, newest first.
+     * Retrieve a paginated listing of the owner's todos, newest first. The id
+     * tie-breaker keeps the order stable for rows created in the same second.
      */
-    public function paginate(int $perPage): LengthAwarePaginator
+    public function paginate(User $owner, int $perPage): LengthAwarePaginator
     {
-        $todos = Todo::query()->latest()->paginate($perPage);
+        $todos = $owner->todos()
+            ->latest()
+            ->latest('id')
+            ->paginate($perPage);
 
-        Log::info('todo.listed', ['count' => $todos->count()]);
+        Log::info('todo.listed', ['user_id' => $owner->id, 'count' => $todos->count()]);
 
         return $todos;
     }
 
     /**
-     * Persist a new todo.
+     * Persist a new todo owned by the given user. The owner is set through the
+     * relation, so user_id never has to be mass-assignable.
      */
-    public function create(TodoData $data): Todo
+    public function create(User $owner, TodoData $data): Todo
     {
-        $todo = Todo::query()->create($data->toArray());
+        $todo = $owner->todos()->create($data->toArray());
 
         Log::info('todo.created', ['id' => $todo->id]);
 

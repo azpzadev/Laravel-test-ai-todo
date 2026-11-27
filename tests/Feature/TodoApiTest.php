@@ -5,12 +5,29 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Todo;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 final class TodoApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    private User $user;
+
+    /**
+     * Every todo endpoint requires a Sanctum-authenticated user, and todos
+     * are only reachable by their owner.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+
+        Sanctum::actingAs($this->user);
+    }
 
     // ---------------------------------------------------------------------
     // index
@@ -18,7 +35,7 @@ final class TodoApiTest extends TestCase
 
     public function test_index_returns_200_with_all_todos_in_correct_structure(): void
     {
-        Todo::factory()->count(3)->create();
+        Todo::factory()->for($this->user)->count(3)->create();
 
         $response = $this->getJson('/api/todos');
 
@@ -183,7 +200,7 @@ final class TodoApiTest extends TestCase
 
     public function test_show_returns_200_with_correct_todo(): void
     {
-        $todo = Todo::factory()->create([
+        $todo = Todo::factory()->for($this->user)->create([
             'title' => 'Findable',
             'due_date' => '2026-10-10',
         ]);
@@ -209,7 +226,7 @@ final class TodoApiTest extends TestCase
 
     public function test_update_persists_full_changes_and_returns_200(): void
     {
-        $todo = Todo::factory()->create([
+        $todo = Todo::factory()->for($this->user)->create([
             'title' => 'Old title',
             'completed' => false,
         ]);
@@ -239,7 +256,7 @@ final class TodoApiTest extends TestCase
 
     public function test_update_persists_partial_change_via_patch(): void
     {
-        $todo = Todo::factory()->create([
+        $todo = Todo::factory()->for($this->user)->create([
             'title' => 'Original',
         ]);
 
@@ -267,7 +284,7 @@ final class TodoApiTest extends TestCase
 
     public function test_update_fails_with_422_when_title_too_long(): void
     {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->for($this->user)->create();
 
         $response = $this->putJson("/api/todos/{$todo->id}", [
             'title' => str_repeat('a', 256),
@@ -279,7 +296,7 @@ final class TodoApiTest extends TestCase
 
     public function test_update_fails_with_422_when_title_present_but_empty(): void
     {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->for($this->user)->create();
 
         $response = $this->putJson("/api/todos/{$todo->id}", [
             'title' => '',
@@ -298,7 +315,7 @@ final class TodoApiTest extends TestCase
      */
     public function test_patch_with_only_title_preserves_existing_completed_true(): void
     {
-        $todo = Todo::factory()->completed()->create([
+        $todo = Todo::factory()->for($this->user)->completed()->create([
             'title' => 'Was completed',
         ]);
 
@@ -324,7 +341,7 @@ final class TodoApiTest extends TestCase
 
     public function test_destroy_returns_204_and_removes_row(): void
     {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->for($this->user)->create();
 
         $response = $this->deleteJson("/api/todos/{$todo->id}");
 

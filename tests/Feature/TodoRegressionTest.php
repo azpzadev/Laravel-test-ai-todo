@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Todo;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
@@ -24,13 +26,28 @@ final class TodoRegressionTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $user;
+
+    /**
+     * Every todo endpoint requires a Sanctum-authenticated user, and todos
+     * are only reachable by their owner.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+
+        Sanctum::actingAs($this->user);
+    }
+
     // ---------------------------------------------------------------------
     // Partial PATCH preserves unsent fields
     // ---------------------------------------------------------------------
 
     public function test_patch_with_only_title_preserves_existing_description(): void
     {
-        $todo = Todo::factory()->create([
+        $todo = Todo::factory()->for($this->user)->create([
             'title' => 'Original title',
             'description' => 'Keep me intact',
         ]);
@@ -52,7 +69,7 @@ final class TodoRegressionTest extends TestCase
 
     public function test_patch_with_only_title_preserves_existing_due_date(): void
     {
-        $todo = Todo::factory()->create([
+        $todo = Todo::factory()->for($this->user)->create([
             'title' => 'Original title',
             'due_date' => '2026-10-20',
         ]);
@@ -71,7 +88,7 @@ final class TodoRegressionTest extends TestCase
 
     public function test_patch_with_explicit_null_description_sets_it_to_null(): void
     {
-        $todo = Todo::factory()->create([
+        $todo = Todo::factory()->for($this->user)->create([
             'title' => 'Has a description',
             'description' => 'This should be cleared',
         ]);
@@ -126,7 +143,7 @@ final class TodoRegressionTest extends TestCase
 
     public function test_update_accepts_description_at_5000_char_boundary(): void
     {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->for($this->user)->create();
 
         $response = $this->patchJson("/api/todos/{$todo->id}", [
             'description' => str_repeat('b', 5000),
@@ -138,7 +155,7 @@ final class TodoRegressionTest extends TestCase
 
     public function test_update_rejects_description_over_5000_chars_with_422(): void
     {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->for($this->user)->create();
 
         $response = $this->patchJson("/api/todos/{$todo->id}", [
             'description' => str_repeat('b', 5001),
@@ -154,7 +171,7 @@ final class TodoRegressionTest extends TestCase
 
     public function test_index_returns_paginated_envelope_with_configured_per_page(): void
     {
-        Todo::factory()->count(3)->create();
+        Todo::factory()->for($this->user)->count(3)->create();
 
         $response = $this->getJson('/api/todos');
 
@@ -175,7 +192,7 @@ final class TodoRegressionTest extends TestCase
         $perPage = (int) config('todo.pagination.per_page');
         $total = $perPage + 5;
 
-        Todo::factory()->count($total)->create();
+        Todo::factory()->for($this->user)->count($total)->create();
 
         $firstPage = $this->getJson('/api/todos');
         $firstPage->assertOk();
@@ -211,7 +228,7 @@ final class TodoRegressionTest extends TestCase
 
     public function test_destroy_emits_todo_deleted_audit_log(): void
     {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->for($this->user)->create();
 
         Log::spy();
 

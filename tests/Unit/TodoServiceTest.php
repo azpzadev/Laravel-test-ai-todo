@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\DTOs\TodoData;
 use App\Models\Todo;
+use App\Models\User;
 use App\Services\TodoService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,12 +57,15 @@ final class TodoServiceTest extends TestCase
             due_date: '2026-09-15',
         );
 
-        $todo = $this->service->create($data);
+        $owner = User::factory()->create();
+
+        $todo = $this->service->create($owner, $data);
 
         $this->assertInstanceOf(Todo::class, $todo);
         $this->assertTrue($todo->completed);
         $this->assertDatabaseHas('todos', [
             'id' => $todo->id,
+            'user_id' => $owner->id,
             'title' => 'Service created',
             'description' => 'Some details',
             'completed' => true,

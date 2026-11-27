@@ -7,6 +7,7 @@ namespace App\Repositories;
 use App\Contracts\Services\TodoServiceInterface;
 use App\DTOs\TodoData;
 use App\Models\Todo;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -27,19 +28,19 @@ final readonly class TodoRepository
     }
 
     /**
-     * Retrieve a paginated listing of todos, newest first.
+     * Retrieve a paginated listing of the owner's todos, newest first.
      */
-    public function paginate(int $perPage): LengthAwarePaginator
+    public function paginate(User $owner, int $perPage): LengthAwarePaginator
     {
-        return $this->service->paginate(perPage: $perPage);
+        return $this->service->paginate(owner: $owner, perPage: $perPage);
     }
 
     /**
-     * Persist a new todo.
+     * Persist a new todo owned by the given user.
      */
-    public function create(TodoData $data): Todo
+    public function create(User $owner, TodoData $data): Todo
     {
-        return $this->service->create(data: $data);
+        return $this->service->create(owner: $owner, data: $data);
     }
 
     /**
