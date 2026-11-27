@@ -29,6 +29,17 @@
             .welcome-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; }
             .welcome-ai-card { border: 1px solid #f8d2cc; background: linear-gradient(135deg, #fff7f5 0%, #ffffff 100%); }
             .welcome-line-through { text-decoration: line-through; }
+            .welcome-chat-log { display: flex; flex-direction: column; gap: 0.75rem; max-height: 24rem; min-height: 8rem; overflow-y: auto; padding: 1rem; border: 1px solid #e3e3e0; border-radius: 0.375rem; }
+            .welcome-chat-bubble { max-width: 85%; padding: 0.5rem 0.875rem; border-radius: 0.5rem; font-size: 0.875rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+            .welcome-chat-bubble-user { align-self: flex-end; background: #1b1b18; color: #ffffff; }
+            .welcome-chat-bubble-assistant { align-self: flex-start; background: #fff2f2; color: #1b1b18; border: 1px solid #f8d2cc; }
+            .welcome-chat-bubble-error { align-self: flex-start; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+            .welcome-chat-actions { margin-top: 0.375rem; font-size: 0.75rem; opacity: 0.75; }
+            .welcome-field-error { font-size: 0.8125rem; color: #b91c1c; }
+            .welcome-chat-row { display: flex; gap: 0.5rem; align-items: flex-start; }
+            .welcome-chat-row textarea { flex: 1; resize: vertical; }
+            [hidden] { display: none !important; }
+            button:disabled { opacity: 0.6; cursor: not-allowed; }
             @media (min-width: 768px) {
                 .welcome-hero-title { font-size: 3.25rem; }
                 .welcome-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -38,6 +49,11 @@
                 .welcome-accent { color: #FF4433; }
                 .welcome-badge { background: #1D0002; color: #FF4433; border-color: #4B0600; }
                 .welcome-ai-card { border-color: #4B0600; background: linear-gradient(135deg, #1D0002 0%, #161615 100%); }
+                .welcome-chat-log { border-color: #3E3E3A; }
+                .welcome-chat-bubble-user { background: #eeeeec; color: #1C1C1A; }
+                .welcome-chat-bubble-assistant { background: #1D0002; color: #EDEDEC; border-color: #4B0600; }
+                .welcome-chat-bubble-error { background: #2a0a0a; color: #fca5a5; border-color: #7f1d1d; }
+                .welcome-field-error { color: #fca5a5; }
             }
         </style>
 
@@ -107,6 +123,13 @@
                 ['method' => 'POST', 'path' => '/api/login', 'description' => 'Sign in and get a token'],
                 ['method' => 'GET', 'path' => '/api/todos', 'description' => 'List your todos (paginated)'],
                 ['method' => 'POST', 'path' => '/api/todos', 'description' => 'Add a todo'],
+                ['method' => 'POST', 'path' => '/api/chat', 'description' => 'Ask the AI to list, add, change or delete your todos'],
+            ];
+
+            $chatExamples = [
+                'Add "Buy milk" due tomorrow',
+                'What is still open?',
+                'Mark "Buy milk" as done',
             ];
         @endphp
 
@@ -121,6 +144,7 @@
                 <div class="flex items-center gap-4 text-sm">
                     <a href="#features" class="text-[#706f6c] dark:text-[#A1A09A] hover:text-gray-700">Features</a>
                     <a href="#preview" class="text-[#706f6c] dark:text-[#A1A09A] hover:text-gray-700">Preview</a>
+                    <a href="#chat" class="text-[#706f6c] dark:text-[#A1A09A] hover:text-gray-700">AI chat</a>
                     <a href="#get-started" class="inline-block px-5 py-1.5 border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] rounded-sm text-[#1b1b18] dark:text-[#EDEDEC]">Get started</a>
                 </div>
             </nav>
@@ -241,6 +265,75 @@
                 </div>
             </section>
 
+            <section
+                id="chat"
+                class="welcome-section"
+                aria-labelledby="chat-heading"
+                data-login-url="{{ route('auth.login') }}"
+                data-logout-url="{{ route('auth.logout') }}"
+                data-chat-url="{{ route('todos.chat') }}"
+            >
+                <div class="welcome-ai-card rounded-md p-6 shadow-sm">
+                    <h2 id="chat-heading" class="text-lg font-semibold">AI chat</h2>
+                    <p class="mt-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                        Sign in, then tell the assistant what to do. It can list, add, change and delete your own todos.
+                    </p>
+
+                    {{-- Step 1: sign in to get a token for POST /api/chat. --}}
+                    <form id="chat-login-form" class="mt-6 flex flex-col gap-4" novalidate>
+                        <div class="flex flex-col gap-2">
+                            <label for="chat-email" class="text-sm font-medium">Email</label>
+                            <input id="chat-email" name="email" type="email" autocomplete="email" required aria-describedby="chat-email-error" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]">
+                            <p id="chat-email-error" class="welcome-field-error" data-error-for="email" hidden></p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="chat-password" class="text-sm font-medium">Password</label>
+                            <input id="chat-password" name="password" type="password" autocomplete="current-password" required aria-describedby="chat-password-error" class="w-full px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]">
+                            <p id="chat-password-error" class="welcome-field-error" data-error-for="password" hidden></p>
+                        </div>
+                        <p id="chat-login-status" class="welcome-field-error" role="alert" hidden></p>
+                        <div>
+                            <button id="chat-login-button" type="submit" class="inline-block px-5 py-1.5 bg-[#1b1b18] text-white border border-black rounded-sm text-sm leading-normal hover:bg-black dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A]">
+                                Sign in to chat
+                            </button>
+                        </div>
+                    </form>
+
+                    {{-- Step 2: chat. Shown only once a token is stored for this tab. --}}
+                    <div id="chat-panel" class="mt-6 flex flex-col gap-4" hidden>
+                        <div class="flex items-center justify-between gap-4 text-sm">
+                            <span>Signed in as <strong id="chat-user-email"></strong></span>
+                            <button id="chat-logout-button" type="button" class="inline-block px-4 py-1 border border-[#19140035] hover:border-[#1915014a] dark:border-[#3E3E3A] rounded-sm text-sm">
+                                Sign out
+                            </button>
+                        </div>
+
+                        <div id="chat-log" class="welcome-chat-log bg-white dark:bg-[#161615]" role="log" aria-live="polite" aria-label="Chat messages">
+                            <div id="chat-empty" class="text-sm text-[#706f6c] dark:text-[#A1A09A]">
+                                <p>No messages yet. Try one of these:</p>
+                                <ul class="mt-2 flex flex-col gap-1">
+                                    @foreach ($chatExamples as $chatExample)
+                                        <li>“{{ $chatExample }}”</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        </div>
+
+                        <form id="chat-form" class="flex flex-col gap-2" novalidate>
+                            <label for="chat-message" class="text-sm font-medium">Message</label>
+                            <div class="welcome-chat-row">
+                                <textarea id="chat-message" name="message" rows="2" maxlength="2000" required aria-describedby="chat-message-error" placeholder="e.g. Add &quot;Call the dentist&quot; due on Friday" class="px-4 py-2 text-sm rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#161615] text-[#1b1b18] dark:text-[#EDEDEC]"></textarea>
+                                <button id="chat-send-button" type="submit" class="inline-block px-5 py-2 bg-[#1b1b18] text-white border border-black rounded-sm text-sm leading-normal hover:bg-black dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A]">
+                                    Send
+                                </button>
+                            </div>
+                            <p id="chat-message-error" class="welcome-field-error" data-error-for="message" hidden></p>
+                            <p class="text-xs text-[#706f6c] dark:text-[#A1A09A]">Press Enter to send, Shift + Enter for a new line.</p>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
             <section id="get-started" class="welcome-section" aria-labelledby="get-started-heading">
                 <div class="bg-white dark:bg-[#161615] border border-[#e3e3e0] dark:border-[#3E3E3A] rounded-md p-6 shadow-sm">
                     <h2 id="get-started-heading" class="text-lg font-semibold">Get started with the API</h2>
@@ -263,5 +356,222 @@
                 Todo AI · Built with Laravel
             </footer>
         </div>
+
+        {{-- AI chat client. Inline (like the page styles) so it works with or without a Vite build. --}}
+        <script>
+            (() => {
+                'use strict';
+
+                const chatSection = document.getElementById('chat');
+                const loginForm = document.getElementById('chat-login-form');
+                const loginButton = document.getElementById('chat-login-button');
+                const loginStatus = document.getElementById('chat-login-status');
+                const chatPanel = document.getElementById('chat-panel');
+                const userEmail = document.getElementById('chat-user-email');
+                const logoutButton = document.getElementById('chat-logout-button');
+                const chatLog = document.getElementById('chat-log');
+                const chatEmpty = document.getElementById('chat-empty');
+                const chatForm = document.getElementById('chat-form');
+                const messageInput = document.getElementById('chat-message');
+                const sendButton = document.getElementById('chat-send-button');
+
+                const urls = {
+                    login: chatSection.dataset.loginUrl,
+                    logout: chatSection.dataset.logoutUrl,
+                    chat: chatSection.dataset.chatUrl,
+                };
+
+                // The token lives only for this browser tab.
+                const storageKey = 'todo-ai.chat-session';
+
+                const readSession = () => {
+                    try {
+                        return JSON.parse(sessionStorage.getItem(storageKey) ?? 'null');
+                    } catch {
+                        return null;
+                    }
+                };
+
+                const saveSession = (session) => sessionStorage.setItem(storageKey, JSON.stringify(session));
+                const clearSession = () => sessionStorage.removeItem(storageKey);
+
+                const showFieldErrors = (form, errors = {}) => {
+                    form.querySelectorAll('[data-error-for]').forEach((element) => {
+                        const messages = errors[element.dataset.errorFor] ?? [];
+                        element.textContent = messages.join(' ');
+                        element.hidden = messages.length === 0;
+                    });
+                };
+
+                const showStatus = (element, text) => {
+                    element.textContent = text ?? '';
+                    element.hidden = ! text;
+                };
+
+                const sendJson = async (url, body, token = null) => {
+                    const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers,
+                        body: body === null ? null : JSON.stringify(body),
+                    });
+
+                    const data = response.status === 204 ? null : await response.json().catch(() => null);
+
+                    return { status: response.status, data };
+                };
+
+                const errorText = (status, data) => {
+                    if (status === 429) {
+                        return 'Too many messages. Please wait a minute and try again.';
+                    }
+
+                    return data?.message ?? 'Something went wrong. Please try again.';
+                };
+
+                const showPanel = (session) => {
+                    loginForm.hidden = session !== null;
+                    chatPanel.hidden = session === null;
+                    userEmail.textContent = session?.email ?? '';
+
+                    if (session !== null) {
+                        messageInput.focus();
+                    }
+                };
+
+                const describeAction = (action) => {
+                    const todo = action.todo_id === null ? '' : ` #${action.todo_id}`;
+
+                    return `${action.tool.replace('_', ' ')}${todo}: ${action.status}`;
+                };
+
+                const appendBubble = (kind, text, actions = []) => {
+                    chatEmpty.hidden = true;
+
+                    const bubble = document.createElement('div');
+                    bubble.className = `welcome-chat-bubble welcome-chat-bubble-${kind}`;
+                    bubble.textContent = text;
+
+                    if (actions.length > 0) {
+                        const actionLine = document.createElement('div');
+                        actionLine.className = 'welcome-chat-actions';
+                        actionLine.textContent = actions.map(describeAction).join(' · ');
+                        bubble.appendChild(actionLine);
+                    }
+
+                    chatLog.appendChild(bubble);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+
+                    return bubble;
+                };
+
+                loginForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    showFieldErrors(loginForm);
+                    showStatus(loginStatus, null);
+                    loginButton.disabled = true;
+                    loginButton.textContent = 'Signing in…';
+
+                    try {
+                        const formData = new FormData(loginForm);
+                        const { status, data } = await sendJson(urls.login, {
+                            email: formData.get('email'),
+                            password: formData.get('password'),
+                        });
+
+                        if (status === 200 && data?.token) {
+                            const session = { token: data.token, email: data.data?.email ?? formData.get('email') };
+                            saveSession(session);
+                            loginForm.reset();
+                            showPanel(session);
+                        } else if (status === 422) {
+                            showFieldErrors(loginForm, data?.errors);
+                        } else {
+                            showStatus(loginStatus, errorText(status, data));
+                        }
+                    } catch {
+                        showStatus(loginStatus, 'Could not reach the server. Check your connection and try again.');
+                    } finally {
+                        loginButton.disabled = false;
+                        loginButton.textContent = 'Sign in to chat';
+                    }
+                });
+
+                logoutButton.addEventListener('click', async () => {
+                    const session = readSession();
+                    clearSession();
+                    showPanel(null);
+
+                    if (session?.token) {
+                        await sendJson(urls.logout, null, session.token).catch(() => null);
+                    }
+                });
+
+                chatForm.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    showFieldErrors(chatForm);
+
+                    const session = readSession();
+                    const message = messageInput.value.trim();
+
+                    if (session === null) {
+                        showPanel(null);
+
+                        return;
+                    }
+
+                    if (message === '') {
+                        showFieldErrors(chatForm, { message: ['Type a message first.'] });
+
+                        return;
+                    }
+
+                    appendBubble('user', message);
+                    messageInput.value = '';
+                    sendButton.disabled = true;
+                    messageInput.disabled = true;
+                    const thinking = appendBubble('assistant', 'Thinking…');
+
+                    try {
+                        const { status, data } = await sendJson(urls.chat, { message }, session.token);
+                        thinking.remove();
+
+                        if (status === 200) {
+                            appendBubble('assistant', data?.data?.reply || 'Done.', data?.data?.actions ?? []);
+                        } else if (status === 401) {
+                            clearSession();
+                            showPanel(null);
+                            showStatus(loginStatus, 'Your session has expired. Please sign in again.');
+                        } else if (status === 422) {
+                            messageInput.value = message;
+                            showFieldErrors(chatForm, data?.errors);
+                        } else {
+                            appendBubble('error', errorText(status, data));
+                        }
+                    } catch {
+                        thinking.remove();
+                        appendBubble('error', 'Could not reach the server. Check your connection and try again.');
+                    } finally {
+                        sendButton.disabled = false;
+                        messageInput.disabled = false;
+                        messageInput.focus();
+                    }
+                });
+
+                messageInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' && ! event.shiftKey && ! event.isComposing) {
+                        event.preventDefault();
+                        chatForm.requestSubmit();
+                    }
+                });
+
+                showPanel(readSession());
+            })();
+        </script>
     </body>
 </html>

@@ -44,6 +44,42 @@ it('shows the API endpoints needed to get started', function (): void {
         ->assertSeeInOrder(['/api/register', '/api/login', '/api/todos', '/api/todos']);
 });
 
+it('links the navigation to the AI chat section', function (): void {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('href="#chat"', escape: false)
+        ->assertSee('id="chat"', escape: false)
+        ->assertSee('AI chat');
+});
+
+it('renders the AI chat sign-in form with labelled fields', function (): void {
+    $response = $this->get('/')->assertOk();
+
+    foreach (['chat-email', 'chat-password', 'chat-message'] as $fieldId) {
+        $response->assertSee('for="'.$fieldId.'"', escape: false)
+            ->assertSee('id="'.$fieldId.'"', escape: false);
+    }
+
+    $response->assertSee('id="chat-login-form"', escape: false)
+        ->assertSee('Sign in to chat')
+        ->assertSee('id="chat-panel" class="mt-6 flex flex-col gap-4" hidden', escape: false);
+});
+
+it('points the AI chat client at the login, logout and chat endpoints', function (): void {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('data-login-url="'.route('auth.login').'"', escape: false)
+        ->assertSee('data-logout-url="'.route('auth.logout').'"', escape: false)
+        ->assertSee('data-chat-url="'.route('todos.chat').'"', escape: false)
+        ->assertSee('/api/chat');
+});
+
+it('shows example prompts while the chat is empty', function (): void {
+    $this->get('/')
+        ->assertOk()
+        ->assertSeeInOrder(['No messages yet.', 'Add &quot;Buy milk&quot; due tomorrow', 'What is still open?'], escape: false);
+});
+
 it('does not disclose the framework or PHP version', function (): void {
     $this->get('/')
         ->assertOk()
