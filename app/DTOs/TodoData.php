@@ -23,6 +23,17 @@ final readonly class TodoData
         /** @var array<string, mixed> $validated */
         $validated = $request->validated();
 
+        return self::fromValidated($validated);
+    }
+
+    /**
+     * Build the DTO from an already validated attribute array (a FormRequest
+     * payload or validated AI tool arguments).
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    public static function fromValidated(array $validated): self
+    {
         return new self(
             title: (string) $validated['title'],
             description: isset($validated['description']) ? (string) $validated['description'] : null,
@@ -44,6 +55,18 @@ final readonly class TodoData
         /** @var array<string, mixed> $validated */
         $validated = $request->validated();
 
+        return self::changesFromValidated($validated);
+    }
+
+    /**
+     * Derive a change-set of ONLY the attributes present in an already
+     * validated attribute array.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    public static function changesFromValidated(array $validated): array
+    {
         $changes = [];
 
         if (array_key_exists('title', $validated)) {
