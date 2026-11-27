@@ -38,4 +38,20 @@ return [
         'per_page' => 15,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI Chat
+    |--------------------------------------------------------------------------
+    |
+    | Limits for the AI chat endpoint that manages todos through tool calls.
+    | max_tool_rounds caps how many model <-> tool round trips one message may
+    | trigger; list_limit caps how many todos the list tool returns.
+    |
+    */
+
+    'chat' => [
+        'max_tool_rounds' => 5,
+        'list_limit' => 50,
+    ],
+
 ];

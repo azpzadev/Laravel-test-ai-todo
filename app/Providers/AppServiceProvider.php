@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Contracts\Services\AuthServiceInterface;
+use App\Contracts\Services\TodoChatServiceInterface;
 use App\Contracts\Services\TodoServiceInterface;
 use App\Services\AuthService;
+use App\Services\TodoChatService;
 use App\Services\TodoService;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(TodoServiceInterface::class, TodoService::class);
         $this->app->bind(AuthServiceInterface::class, AuthService::class);
+        $this->app->bind(TodoChatServiceInterface::class, TodoChatService::class);
     }
 
     /**
